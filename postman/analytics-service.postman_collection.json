@@ -1,0 +1,565 @@
+{
+  "info": {
+    "_postman_id": "a1c8e7b0-9b2f-4a1f-9d8e-quickbite-anly",
+    "name": "analytics-service",
+    "description": "QuickBite — analytics-service HTTP endpoints.\n\nAll routes (except `/health`) live under `/api/v1/analytics/...` and require:\n- **Auth:** JWT in cookie `access_token` *or* `Authorization: Bearer <jwt>`.\n- **RBAC:** caller's role must carry the `analytics:read` permission (resolved via core-service).\n\nResponse envelope: `{ \"success\": true, \"data\": ... }` on success, `{ \"success\": false, \"error\": { \"code\", \"message\" } }` on failure. Every response carries an `x-correlation-id` header.\n\nMint a dev JWT with `go run ./play/mint-jwt` and paste it into the `accessToken` collection variable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string",
+      "description": "analytics-service base URL (PORT defaults to 5000 in .env.example)."
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string",
+      "description": "JWT signed with ACCESS_SECRET. Mint via `go run ./play/mint-jwt`."
+    },
+    {
+      "key": "restaurantId",
+      "value": "42",
+      "type": "string"
+    },
+    {
+      "key": "branchId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "10",
+      "type": "string"
+    },
+    {
+      "key": "from",
+      "value": "2026-05-01",
+      "type": "string",
+      "description": "YYYY-MM-DD UTC, inclusive."
+    },
+    {
+      "key": "to",
+      "value": "2026-05-22",
+      "type": "string",
+      "description": "YYYY-MM-DD UTC, inclusive. Must be >= from."
+    },
+    {
+      "key": "topLimit",
+      "value": "10",
+      "type": "string",
+      "description": "Optional 1..100, defaults server-side when omitted."
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Unauthenticated liveness probe. Always 200.\n\n```json\n{ \"success\": true, \"data\": { \"status\": \"ok\" } }\n```"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/health",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["health"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": { \"status\": \"ok\" }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Restaurants",
+      "description": "Per-restaurant rollups served from `agg_restaurant_day`.",
+      "item": [
+        {
+          "name": "GET /analytics/restaurants/{restaurantId}/days",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/restaurants/{{restaurantId}}/days?from={{from}}&to={{to}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "restaurants", "{{restaurantId}}", "days"],
+              "query": [
+                { "key": "from", "value": "{{from}}", "description": "YYYY-MM-DD UTC, required." },
+                { "key": "to", "value": "{{to}}", "description": "YYYY-MM-DD UTC, required, >= from." }
+              ],
+              "variable": [
+                { "key": "restaurantId", "value": "{{restaurantId}}", "description": "int64 > 0" }
+              ]
+            },
+            "description": "One row per UTC day in `[from, to]` for the given restaurant.\n\n`avgOrderMinor` is derived (`revenueMinor / ordersCount`); empty result is `data: []`, never 404."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/analytics/restaurants/42/days?from=2026-05-01&to=2026-05-22",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "analytics", "restaurants", "42", "days"],
+                  "query": [
+                    { "key": "from", "value": "2026-05-01" },
+                    { "key": "to", "value": "2026-05-22" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"date\": \"2026-05-21\",\n      \"ordersCount\": 2,\n      \"revenueMinor\": 4000,\n      \"currency\": \"EGP\",\n      \"avgOrderMinor\": 2000\n    }\n  ]\n}"
+            },
+            {
+              "name": "400 VALIDATION_ERROR (bad date)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/analytics/restaurants/42/days?from=&to=2026-05-22",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "analytics", "restaurants", "42", "days"],
+                  "query": [
+                    { "key": "from", "value": "" },
+                    { "key": "to", "value": "2026-05-22" }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"invalid request\"\n  }\n}"
+            },
+            {
+              "name": "400 ANALYTICS_INVALID_DATE_RANGE",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/analytics/restaurants/42/days?from=2026-05-22&to=2026-05-01",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "analytics", "restaurants", "42", "days"],
+                  "query": [
+                    { "key": "from", "value": "2026-05-22" },
+                    { "key": "to", "value": "2026-05-01" }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"ANALYTICS_INVALID_DATE_RANGE\",\n    \"message\": \"`from` must be on or before `to`\"\n  }\n}"
+            },
+            {
+              "name": "401 UNAUTHENTICATED",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/analytics/restaurants/42/days?from=2026-05-01&to=2026-05-22",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "analytics", "restaurants", "42", "days"],
+                  "query": [
+                    { "key": "from", "value": "2026-05-01" },
+                    { "key": "to", "value": "2026-05-22" }
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"UNAUTHENTICATED\",\n    \"message\": \"missing or invalid token\"\n  }\n}"
+            },
+            {
+              "name": "403 FORBIDDEN",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/analytics/restaurants/42/days?from=2026-05-01&to=2026-05-22",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "analytics", "restaurants", "42", "days"],
+                  "query": [
+                    { "key": "from", "value": "2026-05-01" },
+                    { "key": "to", "value": "2026-05-22" }
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"FORBIDDEN\",\n    \"message\": \"role lacks analytics:read\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET /analytics/restaurants/{restaurantId}/failures",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/restaurants/{{restaurantId}}/failures?from={{from}}&to={{to}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "restaurants", "{{restaurantId}}", "failures"],
+              "query": [
+                { "key": "from", "value": "{{from}}", "description": "YYYY-MM-DD UTC, required." },
+                { "key": "to", "value": "{{to}}", "description": "YYYY-MM-DD UTC, required, >= from." }
+              ],
+              "variable": [
+                { "key": "restaurantId", "value": "{{restaurantId}}", "description": "int64 > 0" }
+              ]
+            },
+            "description": "Per-day failure breakdown: orders, rejected, and derived `failureRate` (0..1). Derived from `agg_restaurant_day` (`rejected_count / orders_count`)."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/analytics/restaurants/42/failures?from=2026-05-01&to=2026-05-22",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "analytics", "restaurants", "42", "failures"],
+                  "query": [
+                    { "key": "from", "value": "2026-05-01" },
+                    { "key": "to", "value": "2026-05-22" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"date\": \"2026-05-21\",\n      \"ordersCount\": 10,\n      \"rejectedCount\": 1,\n      \"failureRate\": 0.1\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET /analytics/restaurants/{restaurantId}/delivery-avg",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/restaurants/{{restaurantId}}/delivery-avg?from={{from}}&to={{to}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "restaurants", "{{restaurantId}}", "delivery-avg"],
+              "query": [
+                { "key": "from", "value": "{{from}}", "description": "YYYY-MM-DD UTC, required." },
+                { "key": "to", "value": "{{to}}", "description": "YYYY-MM-DD UTC, required, >= from." }
+              ],
+              "variable": [
+                { "key": "restaurantId", "value": "{{restaurantId}}", "description": "int64 > 0" }
+              ]
+            },
+            "description": "Per-day average delivery time in milliseconds (`delivery_ms_sum / delivery_ms_count`). `deliveriesCounted` distinguishes \"no deliveries\" from \"deliveries with 0 average\"."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/analytics/restaurants/42/delivery-avg?from=2026-05-01&to=2026-05-22",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "analytics", "restaurants", "42", "delivery-avg"],
+                  "query": [
+                    { "key": "from", "value": "2026-05-01" },
+                    { "key": "to", "value": "2026-05-22" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"date\": \"2026-05-21\",\n      \"deliveriesCounted\": 8,\n      \"avgDeliveryMs\": 1820000\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET /analytics/restaurants/top",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/restaurants/top?from={{from}}&to={{to}}&limit={{topLimit}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "restaurants", "top"],
+              "query": [
+                { "key": "from", "value": "{{from}}", "description": "YYYY-MM-DD UTC, required." },
+                { "key": "to", "value": "{{to}}", "description": "YYYY-MM-DD UTC, required, >= from." },
+                { "key": "limit", "value": "{{topLimit}}", "description": "1..100, optional; service-default when omitted." }
+              ]
+            },
+            "description": "Top restaurants by revenue over `[from, to]`. Backed by a Mongo `$group + $sort + $limit` aggregation pipeline."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/analytics/restaurants/top?from=2026-05-01&to=2026-05-22&limit=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "analytics", "restaurants", "top"],
+                  "query": [
+                    { "key": "from", "value": "2026-05-01" },
+                    { "key": "to", "value": "2026-05-22" },
+                    { "key": "limit", "value": "10" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"restaurantId\": 42,\n      \"ordersCount\": 120,\n      \"revenueMinor\": 360000,\n      \"currency\": \"EGP\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Branches",
+      "description": "Per-branch rollups served from `agg_branch_day`.",
+      "item": [
+        {
+          "name": "GET /analytics/branches/{branchId}/days",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/branches/{{branchId}}/days?from={{from}}&to={{to}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "branches", "{{branchId}}", "days"],
+              "query": [
+                { "key": "from", "value": "{{from}}", "description": "YYYY-MM-DD UTC, required." },
+                { "key": "to", "value": "{{to}}", "description": "YYYY-MM-DD UTC, required, >= from." }
+              ],
+              "variable": [
+                { "key": "branchId", "value": "{{branchId}}", "description": "int64 > 0" }
+              ]
+            },
+            "description": "Mirrors the restaurant /days endpoint against `agg_branch_day`."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/analytics/branches/1/days?from=2026-05-01&to=2026-05-22",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "analytics", "branches", "1", "days"],
+                  "query": [
+                    { "key": "from", "value": "2026-05-01" },
+                    { "key": "to", "value": "2026-05-22" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"date\": \"2026-05-21\",\n      \"ordersCount\": 1,\n      \"revenueMinor\": 2500,\n      \"currency\": \"EGP\",\n      \"avgOrderMinor\": 2500\n    }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "description": "Per-product rollups served from `agg_product_day`.",
+      "item": [
+        {
+          "name": "GET /analytics/products/{productId}/days",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/products/{{productId}}/days?from={{from}}&to={{to}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "products", "{{productId}}", "days"],
+              "query": [
+                { "key": "from", "value": "{{from}}", "description": "YYYY-MM-DD UTC, required." },
+                { "key": "to", "value": "{{to}}", "description": "YYYY-MM-DD UTC, required, >= from." }
+              ],
+              "variable": [
+                { "key": "productId", "value": "{{productId}}", "description": "int64 > 0" }
+              ]
+            },
+            "description": "Per-day units sold and revenue for a single product. Includes `ordersCount` (distinct orders containing the product) and `unitsSold` (sum of line quantities)."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/analytics/products/10/days?from=2026-05-01&to=2026-05-22",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "analytics", "products", "10", "days"],
+                  "query": [
+                    { "key": "from", "value": "2026-05-01" },
+                    { "key": "to", "value": "2026-05-22" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"date\": \"2026-05-21\",\n      \"ordersCount\": 2,\n      \"unitsSold\": 3,\n      \"revenueMinor\": 7500,\n      \"currency\": \"EGP\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Platform",
+      "description": "Platform-wide rollups served from `agg_platform_day`.",
+      "item": [
+        {
+          "name": "GET /analytics/platform/days",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/platform/days?from={{from}}&to={{to}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "platform", "days"],
+              "query": [
+                { "key": "from", "value": "{{from}}", "description": "YYYY-MM-DD UTC, required." },
+                { "key": "to", "value": "{{to}}", "description": "YYYY-MM-DD UTC, required, >= from." }
+              ]
+            },
+            "description": "One row per `(date, currency)` for the whole platform."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/analytics/platform/days?from=2026-05-01&to=2026-05-22",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "analytics", "platform", "days"],
+                  "query": [
+                    { "key": "from", "value": "2026-05-01" },
+                    { "key": "to", "value": "2026-05-22" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"date\": \"2026-05-21\",\n      \"currency\": \"EGP\",\n      \"ordersCount\": 250,\n      \"revenueMinor\": 1875000,\n      \"avgOrderMinor\": 7500\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET /analytics/platform/active-restaurants",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/platform/active-restaurants?from={{from}}&to={{to}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "platform", "active-restaurants"],
+              "query": [
+                { "key": "from", "value": "{{from}}", "description": "YYYY-MM-DD UTC, required." },
+                { "key": "to", "value": "{{to}}", "description": "YYYY-MM-DD UTC, required, >= from." }
+              ]
+            },
+            "description": "Count of distinct restaurants with >= 1 order in `[from, to]`. Window is echoed in the payload so the response is self-describing."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/analytics/platform/active-restaurants?from=2026-05-01&to=2026-05-22",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "analytics", "platform", "active-restaurants"],
+                  "query": [
+                    { "key": "from", "value": "2026-05-01" },
+                    { "key": "to", "value": "2026-05-22" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"from\": \"2026-05-01\",\n    \"to\": \"2026-05-22\",\n    \"count\": 17\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

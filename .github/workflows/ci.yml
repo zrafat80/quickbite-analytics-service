@@ -1,0 +1,56 @@
+name: Analytics Service CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-unit-test:
+    name: Build and Unit Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build analytics binary
+        run: go build -o /tmp/analytics-service ./cmd/api
+
+      - name: Run unit tests
+        run: go test -count=1 ./...
+
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Run integration tests
+        run: |
+          docker compose -f docker-compose.test.yml up \
+            --build \
+            --abort-on-container-exit \
+            --exit-code-from analytics-integration-test
+
+      - name: Tear down integration stack
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v --remove-orphans

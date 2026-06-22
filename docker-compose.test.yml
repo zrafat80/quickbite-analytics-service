@@ -1,0 +1,48 @@
+services:
+  mongo-test:
+    image: mongo:7.0
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "--eval",
+          "db.adminCommand('ping').ok",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  rabbitmq-test:
+    image: rabbitmq:3.13-alpine
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  analytics-integration-test:
+    build:
+      context: .
+      target: builder
+    environment:
+      MONGO_URI: mongodb://mongo-test:27017
+      MONGO_TEST_DATABASE: analytics_service_test
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq-test:5672/
+    depends_on:
+      mongo-test:
+        condition: service_healthy
+      rabbitmq-test:
+        condition: service_healthy
+    command:
+      [
+        "go",
+        "test",
+        "-tags=integration",
+        "-count=1",
+        "-v",
+        "./test/integration/...",
+      ]

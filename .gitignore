@@ -1,0 +1,32 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+
+# Test binary
+*.test
+*.out
+.gocache/
+coverage.out
+
+# Runtime / dev logs
+*.log
+.api.stdout.log
+.api.stderr.log
+.mock.stdout.log
+.mock.stderr.log
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Env
+.env
+.env.local
+
+# Dev helpers — gitignored, not part of the service
+play/
