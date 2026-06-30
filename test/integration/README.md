@@ -21,7 +21,7 @@ The helper loads the service `.env` first. Explicit environment variables
 still take precedence:
 
 ```sh
-MONGO_URI=mongodb://localhost:27017
+MONGO_URL=mongodb://localhost:27017
 MONGO_TEST_DATABASE=analytics_service_test
 RABBITMQ_URL=amqp://guest:guest@localhost:5672/
 ```

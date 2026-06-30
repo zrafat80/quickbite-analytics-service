@@ -18,7 +18,7 @@ services:
   rabbitmq-test:
     image: rabbitmq:3.13-alpine
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -29,7 +29,7 @@ services:
       context: .
       target: builder
     environment:
-      MONGO_URI: mongodb://mongo-test:27017
+      MONGO_URL: mongodb://mongo-test:27017
       MONGO_TEST_DATABASE: analytics_service_test
       RABBITMQ_URL: amqp://guest:guest@rabbitmq-test:5672/
     depends_on:

@@ -13,7 +13,7 @@ import (
 func TestLoadUsesEnvironmentAndCleansBindings(t *testing.T) {
 	t.Setenv("PORT", "7777")
 	t.Setenv("LOG_LEVEL", "debug")
-	t.Setenv("MONGO_URI", "mongodb://unit")
+	t.Setenv("MONGO_URL", "mongodb://unit")
 	t.Setenv("MONGO_DATABASE", "analytics_unit")
 	t.Setenv("RABBITMQ_URL", "amqp://unit")
 	t.Setenv("RABBITMQ_ORDER_EVENTS_BINDINGS", " order.#, ,payment.# ")

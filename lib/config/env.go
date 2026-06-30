@@ -18,7 +18,7 @@ type Env struct {
 	LogLevel    string `env:"LOG_LEVEL" envDefault:"info"`
 
 	Mongo struct {
-		URI      string `env:"MONGO_URI" envDefault:"mongodb://localhost:27017"`
+		URI      string `env:"MONGO_URL" envDefault:"mongodb://localhost:27017"`
 		Database string `env:"MONGO_DATABASE" envDefault:"analytics"`
 	} `envPrefix:""`
 

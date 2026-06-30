@@ -21,13 +21,22 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o analytics-binary ./cmd/api
 # ==========================================
 FROM alpine:latest
 
+ENV ENVIRONMENT=production
+ENV PORT=3000
+
 WORKDIR /app
 
 # 1. Copy ONLY the compiled binary from the Kitchen
 COPY --from=builder /app/analytics-binary .
 
-# 2. The Documentation
-EXPOSE 5000
+# 2. DocumentDB TLS
+# MONGO_URL should reference tlsCAFile=global-bundle.pem relative to /app.
+ADD https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /app/global-bundle.pem
+RUN chmod 0644 /app/global-bundle.pem
 
-# 3. Turn the key (Execute the binary)
+# 3. The Documentation
+EXPOSE 3000
+
+# 4. Drop root and turn the key (Execute the binary)
+USER nobody
 CMD ["./analytics-binary"]

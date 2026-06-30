@@ -1,0 +1,10 @@
+.git/
+.gocache/
+.idea/
+.vscode/
+
+*.log
+.env
+.env.local
+
+play/

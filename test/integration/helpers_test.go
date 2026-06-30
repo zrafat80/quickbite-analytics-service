@@ -74,7 +74,7 @@ func setupIntegrationApp(t *testing.T) *integrationApp {
 	t.Helper()
 
 	_ = godotenv.Load(filepath.Join("..", "..", ".env"))
-	mongoURI := getenv("MONGO_URI", "mongodb://localhost:27017")
+	mongoURI := getenv("MONGO_URL", "mongodb://localhost:27017")
 	databaseName := getenv("MONGO_TEST_DATABASE", "analytics_service_test")
 	require.Contains(
 		t,
