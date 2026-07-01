@@ -161,15 +161,15 @@ func TestRabbitEventConsumersEndToEnd(t *testing.T) {
 	assert.Equal(t, int64(1), platform.OrdersCount, "duplicate event IDs must not reach platform aggregates")
 
 	publishEnvelope(t, broker, orderTopology.Exchange, "order.rejected", "rejected-1", "order.rejected", map[string]any{
-		"orderId": "order-1", "restaurantId": 10, "branchId": 20,
+		"orderId": "order-1", "restaurantId": 10, "branchId": 20, "countryCode": "EG",
 		"currency": "EGP", "rejectedAt": "2026-06-10T10:05:00Z",
 	})
 	publishEnvelope(t, broker, orderTopology.Exchange, "order.delivered", "delivered-1", "order.delivered", map[string]any{
-		"orderId": "order-1", "restaurantId": 10, "branchId": 20, "currency": "EGP",
+		"orderId": "order-1", "restaurantId": 10, "branchId": 20, "countryCode": "EG", "currency": "EGP",
 		"placedAt": "2026-06-10T10:00:00Z", "deliveredAt": "2026-06-10T10:30:00Z",
 	})
 	publishEnvelope(t, broker, orderTopology.Exchange, "payment.completed", "payment-1", "payment.completed", map[string]any{
-		"orderId": "order-2", "restaurantId": 11, "branchId": 21, "currency": "SAR",
+		"orderId": "order-2", "restaurantId": 11, "branchId": 21, "countryCode": "SA", "currency": "SAR",
 		"total": 700, "completedAt": "2026-06-11T10:00:00Z",
 		"items": []map[string]any{{"productId": 101, "quantity": 1, "lineTotal": 700}},
 	})
