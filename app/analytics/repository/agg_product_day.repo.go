@@ -25,6 +25,7 @@ func NewAggProductDayRepo(db *mongo.Database) *AggProductDayRepo {
 // looping UpdateOne over N items would be N round-trips.
 func (r *AggProductDayRepo) BulkIncrementOrderItems(
 	ctx context.Context,
+	restaurantID int64,
 	date, currency string,
 	items []analytics.OrderItemInput,
 ) error {
@@ -34,7 +35,7 @@ func (r *AggProductDayRepo) BulkIncrementOrderItems(
 	models := make([]mongo.WriteModel, 0, len(items))
 	now := time.Now().UTC()
 	for _, it := range items {
-		filter := bson.M{"product_id": it.ProductID, "date": date}
+		filter := bson.M{"restaurant_id": restaurantID, "product_id": it.ProductID, "date": date}
 		update := bson.M{
 			"$inc": bson.M{
 				"orders_count": 1,

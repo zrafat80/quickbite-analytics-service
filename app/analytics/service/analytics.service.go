@@ -54,10 +54,10 @@ func (s *AnalyticsService) OnOrderPlaced(ctx context.Context, in analytics.OnOrd
 	if err := s.branchRepo.IncrementOrderRow(ctx, in.BranchID, in.RestaurantID, date, in.Currency, in.Total); err != nil {
 		return err
 	}
-	if err := s.productRepo.BulkIncrementOrderItems(ctx, date, in.Currency, in.Items); err != nil {
+	if err := s.productRepo.BulkIncrementOrderItems(ctx, in.RestaurantID, date, in.Currency, in.Items); err != nil {
 		return err
 	}
-	if err := s.platformRepo.IncrementOrderRow(ctx, date, in.Currency, in.Total); err != nil {
+	if err := s.platformRepo.IncrementOrderRow(ctx, date, in.CountryCode, in.Currency, in.Total); err != nil {
 		return err
 	}
 	return nil
@@ -77,7 +77,7 @@ func (s *AnalyticsService) OnOrderRejected(ctx context.Context, in analytics.OnO
 	if err := s.branchRepo.IncrementRejectedRow(ctx, in.BranchID, in.RestaurantID, date, in.Currency); err != nil {
 		return err
 	}
-	if err := s.platformRepo.IncrementRejectedRow(ctx, date, in.Currency); err != nil {
+	if err := s.platformRepo.IncrementRejectedRow(ctx, date, in.CountryCode, in.Currency); err != nil {
 		return err
 	}
 	return nil
@@ -102,7 +102,7 @@ func (s *AnalyticsService) OnOrderDelivered(ctx context.Context, in analytics.On
 	if err := s.branchRepo.AddDelivery(ctx, in.BranchID, in.RestaurantID, date, in.Currency, in.DeliveryMs); err != nil {
 		return err
 	}
-	if err := s.platformRepo.AddDelivery(ctx, date, in.Currency, in.DeliveryMs); err != nil {
+	if err := s.platformRepo.AddDelivery(ctx, date, in.CountryCode, in.Currency, in.DeliveryMs); err != nil {
 		return err
 	}
 	return nil
@@ -120,10 +120,10 @@ func (s *AnalyticsService) OnPaymentCompleted(ctx context.Context, in analytics.
 	if err := s.branchRepo.IncrementOrderRow(ctx, in.BranchID, in.RestaurantID, date, in.Currency, in.Total); err != nil {
 		return err
 	}
-	if err := s.productRepo.BulkIncrementOrderItems(ctx, date, in.Currency, in.Items); err != nil {
+	if err := s.productRepo.BulkIncrementOrderItems(ctx, in.RestaurantID, date, in.Currency, in.Items); err != nil {
 		return err
 	}
-	if err := s.platformRepo.IncrementOrderRow(ctx, date, in.Currency, in.Total); err != nil {
+	if err := s.platformRepo.IncrementOrderRow(ctx, date, in.CountryCode, in.Currency, in.Total); err != nil {
 		return err
 	}
 	return nil

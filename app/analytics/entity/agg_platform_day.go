@@ -12,6 +12,7 @@ import "time"
 // it per event would double-count restaurants that placed multiple orders.
 type AggPlatformDay struct {
 	Date            string    `bson:"date"`
+	CountryCode     string    `bson:"country_code"`
 	Currency        string    `bson:"currency"`
 	OrdersCount     int64     `bson:"orders_count"`
 	RevenueSum      int64     `bson:"revenue_sum"`

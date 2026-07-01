@@ -43,6 +43,8 @@ type orderPlacedPayload struct {
 
 type orderRejectedPayload struct {
 	OrderID      string `json:"orderId"`
+	Region       string `json:"region"`
+	CountryCode  string `json:"countryCode"`
 	RestaurantID int64  `json:"restaurantId"`
 	BranchID     int64  `json:"branchId"`
 	Currency     string `json:"currency"`
@@ -51,6 +53,8 @@ type orderRejectedPayload struct {
 
 type orderDeliveredPayload struct {
 	OrderID      string `json:"orderId"`
+	Region       string `json:"region"`
+	CountryCode  string `json:"countryCode"`
 	RestaurantID int64  `json:"restaurantId"`
 	BranchID     int64  `json:"branchId"`
 	Currency     string `json:"currency"`
@@ -60,6 +64,8 @@ type orderDeliveredPayload struct {
 
 type paymentCompletedPayload struct {
 	OrderID      string             `json:"orderId"`
+	Region       string             `json:"region"`
+	CountryCode  string             `json:"countryCode"`
 	RestaurantID int64              `json:"restaurantId"`
 	BranchID     int64              `json:"branchId"`
 	Total        int64              `json:"total"`
@@ -117,7 +123,8 @@ func handleOrderRejected(ctx context.Context, svc analytics.EventService, env co
 	if err := json.Unmarshal(env.Payload, &p); err != nil {
 		return coreevents.Permanent(fmt.Errorf("decode order.rejected payload: %w", err))
 	}
-	if p.OrderID == "" || p.RestaurantID <= 0 || p.BranchID <= 0 || p.Currency == "" || p.RejectedAt == "" {
+	countryCode := countryCodeOrRegion(p.CountryCode, p.Region)
+	if p.OrderID == "" || p.RestaurantID <= 0 || p.BranchID <= 0 || countryCode == "" || p.Currency == "" || p.RejectedAt == "" {
 		return coreevents.Permanent(fmt.Errorf("validate order.rejected payload: missing or invalid required field"))
 	}
 	rejectedAt, err := time.Parse(time.RFC3339, p.RejectedAt)
@@ -128,6 +135,7 @@ func handleOrderRejected(ctx context.Context, svc analytics.EventService, env co
 		OrderID:      p.OrderID,
 		RestaurantID: p.RestaurantID,
 		BranchID:     p.BranchID,
+		CountryCode:  countryCode,
 		Currency:     p.Currency,
 		RejectedAt:   rejectedAt,
 	})
@@ -138,7 +146,8 @@ func handleOrderDelivered(ctx context.Context, svc analytics.EventService, env c
 	if err := json.Unmarshal(env.Payload, &p); err != nil {
 		return coreevents.Permanent(fmt.Errorf("decode order.delivered payload: %w", err))
 	}
-	if p.OrderID == "" || p.RestaurantID <= 0 || p.BranchID <= 0 || p.Currency == "" || p.PlacedAt == "" || p.DeliveredAt == "" {
+	countryCode := countryCodeOrRegion(p.CountryCode, p.Region)
+	if p.OrderID == "" || p.RestaurantID <= 0 || p.BranchID <= 0 || countryCode == "" || p.Currency == "" || p.PlacedAt == "" || p.DeliveredAt == "" {
 		return coreevents.Permanent(fmt.Errorf("validate order.delivered payload: missing or invalid required field"))
 	}
 	placedAt, err := time.Parse(time.RFC3339, p.PlacedAt)
@@ -153,6 +162,7 @@ func handleOrderDelivered(ctx context.Context, svc analytics.EventService, env c
 		OrderID:      p.OrderID,
 		RestaurantID: p.RestaurantID,
 		BranchID:     p.BranchID,
+		CountryCode:  countryCode,
 		Currency:     p.Currency,
 		DeliveredAt:  deliveredAt,
 		DeliveryMs:   deliveredAt.Sub(placedAt).Milliseconds(),
@@ -175,6 +185,7 @@ func handlePaymentCompleted(ctx context.Context, svc analytics.EventService, env
 		OrderID:      p.OrderID,
 		RestaurantID: p.RestaurantID,
 		BranchID:     p.BranchID,
+		CountryCode:  countryCodeOrRegion(p.CountryCode, p.Region),
 		Currency:     p.Currency,
 		Total:        p.Total,
 		CompletedAt:  completedAt,
@@ -202,17 +213,24 @@ func toItemInputs(in []orderItemPayload) []analytics.OrderItemInput {
 }
 
 func validateOrderPlaced(p orderPlacedPayload) error {
-	if p.OrderID == "" || p.RestaurantID <= 0 || p.BranchID <= 0 || p.Currency == "" || p.Total < 0 || p.PlacedAt == "" {
+	if p.OrderID == "" || p.RestaurantID <= 0 || p.BranchID <= 0 || p.CountryCode == "" || p.Currency == "" || p.Total < 0 || p.PlacedAt == "" {
 		return fmt.Errorf("validate order.placed payload: missing or invalid required field")
 	}
 	return validateItems("order.placed", p.Items)
 }
 
 func validatePaymentCompleted(p paymentCompletedPayload) error {
-	if p.OrderID == "" || p.RestaurantID <= 0 || p.BranchID <= 0 || p.Currency == "" || p.Total < 0 || p.CompletedAt == "" {
+	if p.OrderID == "" || p.RestaurantID <= 0 || p.BranchID <= 0 || countryCodeOrRegion(p.CountryCode, p.Region) == "" || p.Currency == "" || p.Total < 0 || p.CompletedAt == "" {
 		return fmt.Errorf("validate payment.completed payload: missing or invalid required field")
 	}
 	return validateItems("payment.completed", p.Items)
+}
+
+func countryCodeOrRegion(countryCode, region string) string {
+	if countryCode != "" {
+		return countryCode
+	}
+	return region
 }
 
 func validateItems(eventType string, items []orderItemPayload) error {

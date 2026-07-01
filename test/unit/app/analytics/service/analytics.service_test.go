@@ -118,9 +118,10 @@ func (f *branchRepoFake) FindByBranchInRange(_ context.Context, _ int64, _, _ st
 }
 
 type productCall struct {
-	date     string
-	currency string
-	items    []analytics.OrderItemInput
+	restaurantID int64
+	date         string
+	currency     string
+	items        []analytics.OrderItemInput
 }
 
 type productRepoFake struct {
@@ -130,8 +131,8 @@ type productRepoFake struct {
 	findErr  error
 }
 
-func (f *productRepoFake) BulkIncrementOrderItems(_ context.Context, date, currency string, items []analytics.OrderItemInput) error {
-	f.calls = append(f.calls, productCall{date, currency, append([]analytics.OrderItemInput(nil), items...)})
+func (f *productRepoFake) BulkIncrementOrderItems(_ context.Context, restaurantID int64, date, currency string, items []analytics.OrderItemInput) error {
+	f.calls = append(f.calls, productCall{restaurantID, date, currency, append([]analytics.OrderItemInput(nil), items...)})
 	return f.writeErr
 }
 
@@ -140,9 +141,10 @@ func (f *productRepoFake) FindByProductInRange(_ context.Context, _ int64, _, _ 
 }
 
 type platformCall struct {
-	date     string
-	currency string
-	value    int64
+	date        string
+	countryCode string
+	currency    string
+	value       int64
 }
 
 type platformRepoFake struct {
@@ -156,18 +158,18 @@ type platformRepoFake struct {
 	findErr       error
 }
 
-func (f *platformRepoFake) IncrementOrderRow(_ context.Context, date, currency string, value int64) error {
-	f.orderCalls = append(f.orderCalls, platformCall{date, currency, value})
+func (f *platformRepoFake) IncrementOrderRow(_ context.Context, date, countryCode, currency string, value int64) error {
+	f.orderCalls = append(f.orderCalls, platformCall{date, countryCode, currency, value})
 	return f.orderErr
 }
 
-func (f *platformRepoFake) IncrementRejectedRow(_ context.Context, date, currency string) error {
-	f.rejectedCalls = append(f.rejectedCalls, platformCall{date, currency, 0})
+func (f *platformRepoFake) IncrementRejectedRow(_ context.Context, date, countryCode, currency string) error {
+	f.rejectedCalls = append(f.rejectedCalls, platformCall{date, countryCode, currency, 0})
 	return f.rejectedErr
 }
 
-func (f *platformRepoFake) AddDelivery(_ context.Context, date, currency string, value int64) error {
-	f.deliveryCalls = append(f.deliveryCalls, platformCall{date, currency, value})
+func (f *platformRepoFake) AddDelivery(_ context.Context, date, countryCode, currency string, value int64) error {
+	f.deliveryCalls = append(f.deliveryCalls, platformCall{date, countryCode, currency, value})
 	return f.deliveryErr
 }
 
@@ -216,20 +218,20 @@ func TestOnOrderPlacedAndPaymentCompletedFanOut(t *testing.T) {
 		placedAt := time.Date(2026, 6, 2, 0, 30, 0, 0, time.FixedZone("plus2", 2*60*60))
 
 		err := svc.OnOrderPlaced(context.Background(), analytics.OnOrderPlacedInput{
-			RestaurantID: 11, BranchID: 22, Currency: "EGP", Total: 1200, PlacedAt: placedAt, Items: items,
+			RestaurantID: 11, BranchID: 22, CountryCode: "eg", Currency: "EGP", Total: 1200, PlacedAt: placedAt, Items: items,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, []restaurantCall{{11, "2026-06-01", "EGP", 1200}}, restaurant.orderCalls)
 		assert.Equal(t, []branchCall{{22, 11, "2026-06-01", "EGP", 1200}}, branch.orderCalls)
-		assert.Equal(t, []productCall{{"2026-06-01", "EGP", items}}, product.calls)
-		assert.Equal(t, []platformCall{{"2026-06-01", "EGP", 1200}}, platform.orderCalls)
+		assert.Equal(t, []productCall{{11, "2026-06-01", "EGP", items}}, product.calls)
+		assert.Equal(t, []platformCall{{"2026-06-01", "eg", "EGP", 1200}}, platform.orderCalls)
 	})
 
 	t.Run("payment completed uses capture date and the same fanout", func(t *testing.T) {
 		svc, restaurant, branch, product, platform := newTestService()
 		completedAt := time.Date(2026, 6, 3, 12, 0, 0, 0, time.UTC)
 		err := svc.OnPaymentCompleted(context.Background(), analytics.OnPaymentCompletedInput{
-			RestaurantID: 3, BranchID: 4, Currency: "SAR", Total: 500, CompletedAt: completedAt,
+			RestaurantID: 3, BranchID: 4, CountryCode: "ksa", Currency: "SAR", Total: 500, CompletedAt: completedAt,
 		})
 		require.NoError(t, err)
 		require.Len(t, restaurant.orderCalls, 1)
@@ -273,7 +275,7 @@ func TestOnOrderRejectedAndDelivered(t *testing.T) {
 	t.Run("rejected increments restaurant branch and platform", func(t *testing.T) {
 		svc, restaurant, branch, _, platform := newTestService()
 		err := svc.OnOrderRejected(context.Background(), analytics.OnOrderRejectedInput{
-			RestaurantID: 1, BranchID: 2, Currency: "EGP",
+			RestaurantID: 1, BranchID: 2, CountryCode: "eg", Currency: "EGP",
 			RejectedAt: time.Date(2026, 6, 4, 1, 0, 0, 0, time.UTC),
 		})
 		require.NoError(t, err)
@@ -285,7 +287,7 @@ func TestOnOrderRejectedAndDelivered(t *testing.T) {
 	t.Run("delivered clamps negative duration", func(t *testing.T) {
 		svc, restaurant, branch, _, platform := newTestService()
 		err := svc.OnOrderDelivered(context.Background(), analytics.OnOrderDeliveredInput{
-			OrderID: "o-1", RestaurantID: 1, BranchID: 2, Currency: "EGP",
+			OrderID: "o-1", RestaurantID: 1, BranchID: 2, CountryCode: "eg", Currency: "EGP",
 			DeliveredAt: time.Date(2026, 6, 5, 1, 0, 0, 0, time.UTC), DeliveryMs: -50,
 		})
 		require.NoError(t, err)

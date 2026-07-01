@@ -21,13 +21,14 @@ func NewAggPlatformDayRepo(db *mongo.Database) *AggPlatformDayRepo {
 
 func (r *AggPlatformDayRepo) IncrementOrderRow(
 	ctx context.Context,
-	date, currency string,
+	date, countryCode, currency string,
 	revenueMinor int64,
 ) error {
-	filter := bson.M{"date": date, "currency": currency}
+	filter := bson.M{"date": date, "country_code": countryCode}
 	update := bson.M{
-		"$inc": bson.M{"orders_count": 1, "revenue_sum": revenueMinor},
-		"$set": bson.M{"updated_at": time.Now().UTC()},
+		"$inc":         bson.M{"orders_count": 1, "revenue_sum": revenueMinor},
+		"$setOnInsert": bson.M{"country_code": countryCode, "currency": currency},
+		"$set":         bson.M{"updated_at": time.Now().UTC()},
 	}
 	_, err := r.coll.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
 	return err
@@ -35,12 +36,13 @@ func (r *AggPlatformDayRepo) IncrementOrderRow(
 
 func (r *AggPlatformDayRepo) IncrementRejectedRow(
 	ctx context.Context,
-	date, currency string,
+	date, countryCode, currency string,
 ) error {
-	filter := bson.M{"date": date, "currency": currency}
+	filter := bson.M{"date": date, "country_code": countryCode}
 	update := bson.M{
-		"$inc": bson.M{"rejected_count": 1},
-		"$set": bson.M{"updated_at": time.Now().UTC()},
+		"$inc":         bson.M{"rejected_count": 1},
+		"$setOnInsert": bson.M{"country_code": countryCode, "currency": currency},
+		"$set":         bson.M{"updated_at": time.Now().UTC()},
 	}
 	_, err := r.coll.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
 	return err
@@ -48,13 +50,14 @@ func (r *AggPlatformDayRepo) IncrementRejectedRow(
 
 func (r *AggPlatformDayRepo) AddDelivery(
 	ctx context.Context,
-	date, currency string,
+	date, countryCode, currency string,
 	deliveryMs int64,
 ) error {
-	filter := bson.M{"date": date, "currency": currency}
+	filter := bson.M{"date": date, "country_code": countryCode}
 	update := bson.M{
-		"$inc": bson.M{"delivery_ms_sum": deliveryMs, "delivery_ms_count": 1},
-		"$set": bson.M{"updated_at": time.Now().UTC()},
+		"$inc":         bson.M{"delivery_ms_sum": deliveryMs, "delivery_ms_count": 1},
+		"$setOnInsert": bson.M{"country_code": countryCode, "currency": currency},
+		"$set":         bson.M{"updated_at": time.Now().UTC()},
 	}
 	_, err := r.coll.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
 	return err
@@ -67,7 +70,7 @@ func (r *AggPlatformDayRepo) FindInRange(
 	filter := bson.M{"date": bson.M{"$gte": from, "$lte": to}}
 	opts := options.Find().SetSort(bson.D{
 		{Key: "date", Value: 1},
-		{Key: "currency", Value: 1},
+		{Key: "country_code", Value: 1},
 	})
 	cur, err := r.coll.Find(ctx, filter, opts)
 	if err != nil {

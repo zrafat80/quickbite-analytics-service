@@ -38,12 +38,17 @@ func EnsureIndexes(ctx context.Context, db *mongo.Database) error {
 		return err
 	}
 
-	// agg_branch_day: unique (branch_id, date). idx (restaurant_id, date)
+	// agg_branch_day: unique (branch_id, date). The date-first index mirrors
+	// the bulk seed and supports date-window scans; (restaurant_id, date)
 	// supports "all branches of restaurant X in window" without scanning.
 	if _, err := db.Collection(CollectionAggBranchDay).Indexes().CreateMany(ctx, []mongo.IndexModel{
 		{
 			Keys:    bson.D{{Key: "branch_id", Value: 1}, {Key: "date", Value: 1}},
 			Options: options.Index().SetUnique(true).SetName("uq_branch_date"),
+		},
+		{
+			Keys:    bson.D{{Key: "date", Value: 1}, {Key: "branch_id", Value: 1}},
+			Options: options.Index().SetName("idx_date_branch"),
 		},
 		{
 			Keys:    bson.D{{Key: "restaurant_id", Value: 1}, {Key: "date", Value: 1}},
@@ -53,12 +58,22 @@ func EnsureIndexes(ctx context.Context, db *mongo.Database) error {
 		return err
 	}
 
-	// agg_product_day: unique (product_id, date). idx (date, product_id)
-	// supports "top products in window".
+	// agg_product_day: unique (restaurant_id, product_id, date) mirrors the
+	// seed and keeps the product aggregate tenant-scoped. The date/product
+	// index supports future top-product windows without conflicting with the
+	// previous product/date unique index on existing databases.
 	if _, err := db.Collection(CollectionAggProductDay).Indexes().CreateMany(ctx, []mongo.IndexModel{
 		{
-			Keys:    bson.D{{Key: "product_id", Value: 1}, {Key: "date", Value: 1}},
-			Options: options.Index().SetUnique(true).SetName("uq_product_date"),
+			Keys: bson.D{
+				{Key: "restaurant_id", Value: 1},
+				{Key: "product_id", Value: 1},
+				{Key: "date", Value: 1},
+			},
+			Options: options.Index().SetUnique(true).SetName("uq_restaurant_product_date"),
+		},
+		{
+			Keys:    bson.D{{Key: "restaurant_id", Value: 1}, {Key: "date", Value: 1}},
+			Options: options.Index().SetName("idx_restaurant_date"),
 		},
 		{
 			Keys:    bson.D{{Key: "date", Value: 1}, {Key: "product_id", Value: 1}},
@@ -68,11 +83,16 @@ func EnsureIndexes(ctx context.Context, db *mongo.Database) error {
 		return err
 	}
 
-	// agg_platform_day: unique (date, currency). Range query is just by date.
+	// agg_platform_day: unique (date, country_code), matching the seed's
+	// regional rollup key. Currency stays as a label/value on the document.
 	if _, err := db.Collection(CollectionAggPlatformDay).Indexes().CreateMany(ctx, []mongo.IndexModel{
 		{
-			Keys:    bson.D{{Key: "date", Value: 1}, {Key: "currency", Value: 1}},
-			Options: options.Index().SetUnique(true).SetName("uq_platform_date_currency"),
+			Keys:    bson.D{{Key: "date", Value: 1}, {Key: "country_code", Value: 1}},
+			Options: options.Index().SetUnique(true).SetName("uq_platform_date_country"),
+		},
+		{
+			Keys:    bson.D{{Key: "country_code", Value: 1}, {Key: "date", Value: 1}},
+			Options: options.Index().SetName("idx_country_date"),
 		},
 	}); err != nil {
 		return err

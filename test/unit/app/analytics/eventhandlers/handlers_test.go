@@ -97,13 +97,13 @@ func TestOtherHandlersMapPayloads(t *testing.T) {
 
 	require.NoError(t, handlers[analytics.EventOrderRejected](context.Background(), envelope(t, map[string]any{
 		"orderId": "order-1", "restaurantId": 10, "branchId": 20,
-		"currency": "EGP", "rejectedAt": "2026-06-02T10:00:00Z",
+		"countryCode": "eg", "currency": "EGP", "rejectedAt": "2026-06-02T10:00:00Z",
 	})))
 	require.Len(t, fake.rejected, 1)
 	assert.Equal(t, "2026-06-02", fake.rejected[0].RejectedAt.Format("2006-01-02"))
 
 	require.NoError(t, handlers[analytics.EventOrderDelivered](context.Background(), envelope(t, map[string]any{
-		"orderId": "order-1", "restaurantId": 10, "branchId": 20, "currency": "EGP",
+		"orderId": "order-1", "restaurantId": 10, "branchId": 20, "countryCode": "eg", "currency": "EGP",
 		"placedAt": "2026-06-02T10:00:00Z", "deliveredAt": "2026-06-02T10:30:00Z",
 	})))
 	require.Len(t, fake.delivered, 1)
@@ -111,7 +111,7 @@ func TestOtherHandlersMapPayloads(t *testing.T) {
 
 	require.NoError(t, handlers[analytics.EventPaymentComplete](context.Background(), envelope(t, map[string]any{
 		"orderId": "order-2", "restaurantId": 11, "branchId": 21,
-		"currency": "SAR", "total": 800, "completedAt": "2026-06-03T10:00:00Z",
+		"countryCode": "ksa", "currency": "SAR", "total": 800, "completedAt": "2026-06-03T10:00:00Z",
 		"items": []map[string]any{{"productId": 9, "quantity": 2, "lineTotal": 800}},
 	})))
 	require.Len(t, fake.completed, 1)
@@ -136,13 +136,13 @@ func TestHandlersRejectMalformedPayloadsAndPropagateServiceErrors(t *testing.T) 
 	}{
 		{analytics.EventOrderPlaced, map[string]any{"orderId": "", "placedAt": "2026-06-01T00:00:00Z"}},
 		{analytics.EventOrderPlaced, map[string]any{
-			"orderId": "o", "restaurantId": 1, "branchId": 2, "currency": "EGP",
+			"orderId": "o", "restaurantId": 1, "branchId": 2, "countryCode": "eg", "currency": "EGP",
 			"total": 1, "placedAt": "2026-06-01T00:00:00Z",
 			"items": []map[string]any{{"productId": 0, "quantity": 1, "lineTotal": 1}},
 		}},
 		{analytics.EventOrderRejected, map[string]any{"orderId": "o", "rejectedAt": "bad"}},
 		{analytics.EventOrderDelivered, map[string]any{
-			"orderId": "o", "restaurantId": 1, "branchId": 2, "currency": "EGP",
+			"orderId": "o", "restaurantId": 1, "branchId": 2, "countryCode": "eg", "currency": "EGP",
 			"placedAt": "bad", "deliveredAt": "2026-06-01T00:00:00Z",
 		}},
 		{analytics.EventPaymentComplete, map[string]any{"orderId": "o", "completedAt": "bad"}},
@@ -154,7 +154,7 @@ func TestHandlersRejectMalformedPayloadsAndPropagateServiceErrors(t *testing.T) 
 	fake := &eventServiceFake{err: errors.New("write failed")}
 	err := Build(fake)[analytics.EventOrderRejected](context.Background(), envelope(t, map[string]any{
 		"orderId": "order-1", "restaurantId": 10, "branchId": 20,
-		"currency": "EGP", "rejectedAt": "2026-06-02T10:00:00Z",
+		"countryCode": "eg", "currency": "EGP", "rejectedAt": "2026-06-02T10:00:00Z",
 	}))
 	assert.EqualError(t, err, "write failed")
 }

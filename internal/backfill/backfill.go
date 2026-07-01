@@ -308,6 +308,7 @@ func replayOne(
 				OrderID:      o.publicID,
 				RestaurantID: o.restaurantID,
 				BranchID:     o.branchID,
+				CountryCode:  o.countryCode,
 				Currency:     o.currency,
 				RejectedAt:   o.rejectedAt.Time,
 			})
@@ -323,6 +324,7 @@ func replayOne(
 				OrderID:      o.publicID,
 				RestaurantID: o.restaurantID,
 				BranchID:     o.branchID,
+				CountryCode:  o.countryCode,
 				Currency:     o.currency,
 				DeliveredAt:  o.deliveredAt.Time,
 				DeliveryMs:   o.deliveredAt.Time.Sub(o.createdAt).Milliseconds(),

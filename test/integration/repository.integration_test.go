@@ -24,7 +24,7 @@ func TestAggregateWriteRepositoriesAndDedupe(t *testing.T) {
 
 	placedAt := time.Date(2026, 6, 2, 1, 0, 0, 0, time.FixedZone("plus2", 2*60*60))
 	require.NoError(t, app.analyticsService.OnOrderPlaced(ctx, analytics.OnOrderPlacedInput{
-		OrderID: "order-1", RestaurantID: 10, BranchID: 20, Currency: "EGP", Total: 1500,
+		OrderID: "order-1", RestaurantID: 10, BranchID: 20, CountryCode: "eg", Currency: "EGP", Total: 1500,
 		PlacedAt: placedAt,
 		Items: []analytics.OrderItemInput{
 			{ProductID: 100, Quantity: 2, LineTotal: 1000},
@@ -32,11 +32,11 @@ func TestAggregateWriteRepositoriesAndDedupe(t *testing.T) {
 		},
 	}))
 	require.NoError(t, app.analyticsService.OnOrderRejected(ctx, analytics.OnOrderRejectedInput{
-		OrderID: "order-1", RestaurantID: 10, BranchID: 20, Currency: "EGP",
+		OrderID: "order-1", RestaurantID: 10, BranchID: 20, CountryCode: "eg", Currency: "EGP",
 		RejectedAt: time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC),
 	}))
 	require.NoError(t, app.analyticsService.OnOrderDelivered(ctx, analytics.OnOrderDeliveredInput{
-		OrderID: "order-1", RestaurantID: 10, BranchID: 20, Currency: "EGP",
+		OrderID: "order-1", RestaurantID: 10, BranchID: 20, CountryCode: "eg", Currency: "EGP",
 		DeliveredAt: time.Date(2026, 6, 1, 13, 0, 0, 0, time.UTC), DeliveryMs: 900,
 	}))
 
@@ -64,10 +64,11 @@ func TestAggregateWriteRepositoriesAndDedupe(t *testing.T) {
 	}).Decode(&product))
 	assert.Equal(t, int64(2), product.UnitsSold)
 	assert.Equal(t, int64(1000), product.RevenueSum)
+	assert.Equal(t, int64(10), product.RestaurantID)
 
 	var platform entity.AggPlatformDay
 	require.NoError(t, app.platformCollection.FindOne(ctx, bson.M{
-		"date": "2026-06-01", "currency": "EGP",
+		"date": "2026-06-01", "country_code": "eg",
 	}).Decode(&platform))
 	assert.Equal(t, int64(1), platform.OrdersCount)
 	assert.Equal(t, int64(1), platform.RejectedCount)
@@ -90,14 +91,14 @@ func TestPaymentCompletedAndEmptyProductBatch(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, app.analyticsService.OnPaymentCompleted(ctx, analytics.OnPaymentCompletedInput{
-		OrderID: "online-1", RestaurantID: 11, BranchID: 21, Currency: "SAR", Total: 700,
+		OrderID: "online-1", RestaurantID: 11, BranchID: 21, CountryCode: "ksa", Currency: "SAR", Total: 700,
 		CompletedAt: time.Date(2026, 6, 3, 10, 0, 0, 0, time.UTC),
 		Items:       nil,
 	}))
 	assert.Equal(t, int64(1), mustCount(t, app.restaurantCollection, bson.M{"restaurant_id": int64(11)}))
 	assert.Equal(t, int64(1), mustCount(t, app.branchCollection, bson.M{"branch_id": int64(21)}))
 	assert.Equal(t, int64(0), mustCount(t, app.productCollection, bson.M{}))
-	assert.Equal(t, int64(1), mustCount(t, app.platformCollection, bson.M{"currency": "SAR"}))
+	assert.Equal(t, int64(1), mustCount(t, app.platformCollection, bson.M{"country_code": "ksa"}))
 }
 
 func TestIndexDefinitionsAndUniqueness(t *testing.T) {
@@ -106,9 +107,9 @@ func TestIndexDefinitionsAndUniqueness(t *testing.T) {
 
 	expectedNames := map[string][]string{
 		repository.CollectionAggRestaurantDay: {"_id_", "uq_restaurant_date", "idx_date_restaurant"},
-		repository.CollectionAggBranchDay:     {"_id_", "uq_branch_date", "idx_restaurant_date"},
-		repository.CollectionAggProductDay:    {"_id_", "uq_product_date", "idx_date_product"},
-		repository.CollectionAggPlatformDay:   {"_id_", "uq_platform_date_currency"},
+		repository.CollectionAggBranchDay:     {"_id_", "uq_branch_date", "idx_date_branch", "idx_restaurant_date"},
+		repository.CollectionAggProductDay:    {"_id_", "uq_restaurant_product_date", "idx_restaurant_date", "idx_date_product"},
+		repository.CollectionAggPlatformDay:   {"_id_", "uq_platform_date_country", "idx_country_date"},
 		repository.CollectionEventIDs:         {"_id_", "uq_event_id", "ttl_received_at"},
 	}
 	for collection, wantNames := range expectedNames {

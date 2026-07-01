@@ -30,14 +30,14 @@ type BranchDayRepository interface {
 }
 
 type ProductDayRepository interface {
-	BulkIncrementOrderItems(ctx context.Context, date, currency string, items []OrderItemInput) error
+	BulkIncrementOrderItems(ctx context.Context, restaurantID int64, date, currency string, items []OrderItemInput) error
 	FindByProductInRange(ctx context.Context, productID int64, from, to string) ([]entity.AggProductDay, error)
 }
 
 type PlatformDayRepository interface {
-	IncrementOrderRow(ctx context.Context, date, currency string, revenueMinor int64) error
-	IncrementRejectedRow(ctx context.Context, date, currency string) error
-	AddDelivery(ctx context.Context, date, currency string, deliveryMs int64) error
+	IncrementOrderRow(ctx context.Context, date, countryCode, currency string, revenueMinor int64) error
+	IncrementRejectedRow(ctx context.Context, date, countryCode, currency string) error
+	AddDelivery(ctx context.Context, date, countryCode, currency string, deliveryMs int64) error
 	FindInRange(ctx context.Context, from, to string) ([]entity.AggPlatformDay, error)
 }
 
@@ -90,6 +90,7 @@ type OnOrderRejectedInput struct {
 	OrderID      string
 	RestaurantID int64
 	BranchID     int64
+	CountryCode  string
 	Currency     string
 	RejectedAt   time.Time
 }
@@ -101,6 +102,7 @@ type OnOrderDeliveredInput struct {
 	OrderID      string
 	RestaurantID int64
 	BranchID     int64
+	CountryCode  string
 	Currency     string
 	DeliveredAt  time.Time
 	DeliveryMs   int64
@@ -114,6 +116,7 @@ type OnPaymentCompletedInput struct {
 	OrderID      string
 	RestaurantID int64
 	BranchID     int64
+	CountryCode  string
 	Currency     string
 	Total        int64
 	CompletedAt  time.Time
