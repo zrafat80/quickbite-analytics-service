@@ -24,7 +24,7 @@ func (r *AggPlatformDayRepo) IncrementOrderRow(
 	date, countryCode, currency string,
 	revenueMinor int64,
 ) error {
-	filter := bson.M{"date": date, "country_code": countryCode}
+	filter := bson.M{"date": date, "country_code": countryCode, "currency": currency}
 	update := bson.M{
 		"$inc":         bson.M{"orders_count": 1, "revenue_sum": revenueMinor},
 		"$setOnInsert": bson.M{"country_code": countryCode, "currency": currency},
@@ -38,7 +38,7 @@ func (r *AggPlatformDayRepo) IncrementRejectedRow(
 	ctx context.Context,
 	date, countryCode, currency string,
 ) error {
-	filter := bson.M{"date": date, "country_code": countryCode}
+	filter := bson.M{"date": date, "country_code": countryCode, "currency": currency}
 	update := bson.M{
 		"$inc":         bson.M{"rejected_count": 1},
 		"$setOnInsert": bson.M{"country_code": countryCode, "currency": currency},
@@ -53,7 +53,7 @@ func (r *AggPlatformDayRepo) AddDelivery(
 	date, countryCode, currency string,
 	deliveryMs int64,
 ) error {
-	filter := bson.M{"date": date, "country_code": countryCode}
+	filter := bson.M{"date": date, "country_code": countryCode, "currency": currency}
 	update := bson.M{
 		"$inc":         bson.M{"delivery_ms_sum": deliveryMs, "delivery_ms_count": 1},
 		"$setOnInsert": bson.M{"country_code": countryCode, "currency": currency},
@@ -71,6 +71,7 @@ func (r *AggPlatformDayRepo) FindInRange(
 	opts := options.Find().SetSort(bson.D{
 		{Key: "date", Value: 1},
 		{Key: "country_code", Value: 1},
+		{Key: "currency", Value: 1},
 	})
 	cur, err := r.coll.Find(ctx, filter, opts)
 	if err != nil {

@@ -87,7 +87,7 @@ func EnsureIndexes(ctx context.Context, db *mongo.Database) error {
 	// regional rollup key. Currency stays as a label/value on the document.
 	if _, err := db.Collection(CollectionAggPlatformDay).Indexes().CreateMany(ctx, []mongo.IndexModel{
 		{
-			Keys:    bson.D{{Key: "date", Value: 1}, {Key: "country_code", Value: 1}},
+			Keys:    bson.D{{Key: "date", Value: 1}, {Key: "country_code", Value: 1}, {Key: "currency", Value: 1}},
 			Options: options.Index().SetUnique(true).SetName("uq_platform_date_country"),
 		},
 		{
